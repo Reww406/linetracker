@@ -7,8 +7,8 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"github.com/reww406/linetracker/config"
-	"github.com/reww406/linetracker/internal"
+	"github.com/reww406/linetracker/config"	
+	"github.com/reww406/linetracker/internal/store"	
 	"github.com/sirupsen/logrus"
 )
 
@@ -73,7 +73,7 @@ func main() {
 	log := config.GetLogger()
 	config := config.LoadConfig()
 
-	db, err := internal.InitDB("./optiroute.db")
+	db, err := store.InitDB("./optiroute.db")
 	if err != nil {
 		log.WithFields(logrus.Fields{
 			"error": err,
