@@ -25,7 +25,7 @@ func LoadConfig() *Configuration {
 		if err != nil {
 			log.WithFields(logrus.Fields{
 				"error": err,
-			}).Fatal("failed to log config.")
+			}).Fatal("failed to load config.")
 		}
 		defer file.Close()
 

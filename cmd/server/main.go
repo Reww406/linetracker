@@ -73,13 +73,12 @@ func main() {
 	log := config.GetLogger()
 	config := config.LoadConfig()
 
-	db, err := store.InitDB("./optiroute.db")
+  _, err := store.InitDB()
 	if err != nil {
 		log.WithFields(logrus.Fields{
 			"error": err,
 		}).Fatal("Failed to open DB.")
 	}
-	defer db.Close()
 
 	server := CreateGinServer()
 	if err := server.router.Run(fmt.Sprintf(":%d", config.BindingPort)); err != nil {
