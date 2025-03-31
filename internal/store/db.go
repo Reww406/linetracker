@@ -7,7 +7,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
-	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	appConfig "github.com/reww406/linetracker/config"
@@ -22,30 +21,6 @@ func tableExists(ctx context.Context, client *dynamodb.Client, tableName string)
 		TableName: aws.String(tableName),
 	})
 	return err == nil
-}
-
-func InsertStations(ctx context.Context, client *dynamodb.Client, stationList station.StationList) error {
-	ddbStations := stationList.ToDdbStations()
-	log.WithFields(logrus.Fields{
-		"StationsToInsert": len(ddbStations),
-	}).Info("Inserting Stations into DDB")
-
-	for _, station := range ddbStations {
-		item, err := attributevalue.MarshalMap(station)
-		if err != nil {
-			return fmt.Errorf("failed to marshal station: %w", err)
-		}
-
-		_, err = client.PutItem(ctx, &dynamodb.PutItemInput{
-			TableName: aws.String("stations"),
-			Item:      item,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to insert station %s: %w", station.Code, err)
-		}
-	}
-
-	return nil
 }
 
 func InitDB() (*dynamodb.Client, error) {
@@ -101,7 +76,7 @@ func InitDB() (*dynamodb.Client, error) {
 		if err != nil {
 			return nil, err
 		}
-		if err := InsertStations(context.Background(), client, *stations); err != nil {
+		if err := station.InsertStations(context.Background(), client, *stations); err != nil {
 			return nil, err
 		}
 	}

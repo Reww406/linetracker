@@ -1,120 +1,95 @@
 package station
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
+	"strconv"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/reww406/linetracker/config"
+	"github.com/sirupsen/logrus"
 )
 
-var apiURL = "https://api.wmata.com/Rail.svc/json/jStations"
+var log = config.GetLogger()
 
-var insertStmt = `
-        INSERT OR REPLACE INTO stations (
-            code, name, latitude, longitude, line_code1, line_code2, 
-            line_code3, line_code4, station_together1, station_together2,
-            city, state, street, zip
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+func itemToDdbStation(item map[string]types.AttributeValue) DdbStation {
+	zipStr := item["zip"].(*types.AttributeValueMemberN).Value
+	zip, _ := strconv.ParseInt(zipStr, 10, 16)
 
-var selectStationByLineCode = `
-        SELECT 
-            name, line_code1, line_code2, line_code3,
-            line_code4, city, state, street, zip
-        FROM stations 
-        WHERE line_code1 = ? 
-            OR line_code2 = ? 
-            OR line_code3 = ? 
-            OR line_code4 = ?`
+	longitudeStr := item["longitude"].(*types.AttributeValueMemberN).Value
+	longitude, _ := strconv.ParseFloat(longitudeStr, 32)
 
-func InsertStations(db *sql.DB, stations StationList) error {
-	stmt, err := db.Prepare(insertStmt)
-	if err != nil {
-		return fmt.Errorf("error preparing insert statement: %w", err)
+	latitudeStr := item["latitudeStr"].(*types.AttributeValueMemberN).Value
+	latitude, _ := strconv.ParseFloat(latitudeStr, 32)
+	return DdbStation{
+		Code:      item["code"].(*types.AttributeValueMemberS).Value,
+		Name:      item["name"].(*types.AttributeValueMemberS).Value,
+		City:      item["city"].(*types.AttributeValueMemberS).Value,
+		Zip:       int16(zip),
+		Longitude: float32(longitude),
+		Latitude:  float32(latitude),
+		Street:    item["street"].(*types.AttributeValueMemberS).Value,
+		State:     item["state"].(*types.AttributeValueMemberS).Value,
+		LineCodes: item["lineCodes"].(*types.AttributeValueMemberSS).Value,
 	}
-	defer stmt.Close()
-	// Insert each station
-	for _, station := range stations.Stations {
-		_, err := stmt.Exec(
-			station.Code,
-			station.Name,
-			station.Latitude,
-			station.Longitude,
-			station.LineCode1,
-			station.LineCode2,
-			station.LineCode3,
-			station.LineCode4,
-			station.StationTogether1,
-			station.StationTogether2,
-			station.Address.City,
-			station.Address.State,
-			station.Address.Street,
-			station.Address.Zip,
-		)
+}
+
+func InsertStations(ctx context.Context, client *dynamodb.Client, stationList StationList) error {
+	ddbStations := stationList.ToDdbStations()
+	log.WithFields(logrus.Fields{
+		"StationsToInsert": len(ddbStations),
+	}).Info("Inserting Stations into DDB")
+
+	for _, station := range ddbStations {
+		item, err := attributevalue.MarshalMap(station)
 		if err != nil {
-			return fmt.Errorf("error inserting station %s: %w", station.Code, err)
+			return fmt.Errorf("failed to marshal station: %w", err)
+		}
+
+		_, err = client.PutItem(ctx, &dynamodb.PutItemInput{
+			TableName: aws.String("stations"),
+			Item:      item,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to insert station %s: %w", station.Code, err)
 		}
 	}
 	return nil
 }
 
-func createGetStationResp(rows *sql.Rows) (*GetStationResp, error) {
-	var (
-		name      string
-		city      string
-		state     string
-		street    string
-		zip       string
-		lineCode1 string
-		lineCode2 string
-		lineCode3 string
-		lineCode4 string
-	)
-	err := rows.Scan(
-		&name,
-		&city,
-		&state,
-		&street,
-		&zip,
-		&lineCode1,
-		&lineCode2,
-		&lineCode3,
-		&lineCode4,
-	)
-	if err != nil {
-		return nil, err
-	}
+func ListStations(ctx context.Context, client *dynamodb.Client) (*ListStationResp, error) {
+	paginator := dynamodb.NewScanPaginator(client, &dynamodb.ScanInput{
+		TableName: aws.String("stations"),
+	})
 
-	address := Address{
-		City:   city,
-		State:  state,
-		Street: street,
-		Zip:    zip,
-	}
-	result := &GetStationResp{
-		Name:    name,
-		Address: address,
-
-	}
-  return result, nil
-}
-
-//fmt.Errorf("error scanning station row: %w", err)
-func GetStationByLineCode(db *sql.DB, lineCode string) ([]GetStationResp, error) {
-	rows, err := db.Query(selectStationByLineCode,
-		lineCode, lineCode, lineCode, lineCode)
-	if err != nil {
-		return nil, fmt.Errorf("error querying stations: %w", err)
-	}
-	defer rows.Close()
+	var stations []DdbStation
 	var result []GetStationResp
-	for rows.Next() {
-    resp, respErr := createGetStationResp(rows)
-		if respErr != nil {
-			return nil, fmt.Errorf("error scanning station row: %w", err)
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("Fialed to scan stations table: %w", err)
 		}
-		result = append(result, *resp)
-	}
-	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating station rows: %w", err)
+		for _, item := range page.Items {
+			stations = append(stations, itemToDdbStation(item))
+		}
 	}
 
-	return result, nil
+	for _, station := range stations {
+		result = append(result, GetStationResp{
+			Address: Address{
+				City:   station.City,
+				State:  station.State,
+				Street: station.Street,
+				Zip:    station.Zip,
+			},
+			StationCode: station.Code,
+			LineCodes:   station.LineCodes,
+			Name:        station.Name,
+		})
+	}
+	return &ListStationResp{Stations: result}, nil
 }
