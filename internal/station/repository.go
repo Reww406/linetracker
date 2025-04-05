@@ -15,10 +15,7 @@ import (
 
 var log = config.GetLogger()
 
-func itemToDdbStation(item map[string]types.AttributeValue) DdbStation {
-	zipStr := item["zip"].(*types.AttributeValueMemberN).Value
-	zip, _ := strconv.ParseInt(zipStr, 10, 16)
-
+func itemToDdbStation(item map[string]types.AttributeValue) DdbStation {	
 	longitudeStr := item["longitude"].(*types.AttributeValueMemberN).Value
 	longitude, _ := strconv.ParseFloat(longitudeStr, 32)
 
@@ -28,7 +25,7 @@ func itemToDdbStation(item map[string]types.AttributeValue) DdbStation {
 		Code:      item["code"].(*types.AttributeValueMemberS).Value,
 		Name:      item["name"].(*types.AttributeValueMemberS).Value,
 		City:      item["city"].(*types.AttributeValueMemberS).Value,
-		Zip:       int16(zip),
+		Zip:       item["zip"].(*types.AttributeValueMemberN).Value,
 		Longitude: float32(longitude),
 		Latitude:  float32(latitude),
 		Street:    item["street"].(*types.AttributeValueMemberS).Value,
@@ -71,7 +68,7 @@ func ListStations(ctx context.Context, client *dynamodb.Client) (*ListStationRes
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, fmt.Errorf("Fialed to scan stations table: %w", err)
+			return nil, fmt.Errorf("failled to scan stations table: %w", err)
 		}
 		for _, item := range page.Items {
 			stations = append(stations, itemToDdbStation(item))

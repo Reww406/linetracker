@@ -3,7 +3,7 @@ package station
 import (
 	"reflect"
 	"strconv"
-	"strings"
+	"strings"	
 )
 
 type StationList struct {
@@ -14,9 +14,10 @@ type Address struct {
 	City   string `json:"City"`
 	State  string `json:"State"`
 	Street string `json:"Street"`
-	Zip    int16  `json:"Zip"`
+	Zip    string `json:"Zip"`
 }
 
+// TODO Get Start and endtime so we know when to poll
 type Station struct {
 	Address          Address `json:"Address"`
 	Code             string  `json:"Code"`
@@ -47,7 +48,7 @@ type DdbStation struct {
 	City      string   `dynamodbav:"city"`
 	State     string   `dynamodbav:"state"`
 	Street    string   `dynamodbav:"street"`
-	Zip       int16    `dynamodbav:"zip"`
+	Zip       string   `dynamodbav:"zip"`
 	Latitude  float32  `dynamodbav:"latitude"`
 	Longitude float32  `dynamodbav:"longitude"`
 	Name      string   `dynamodbav:"name"`
@@ -73,7 +74,7 @@ func (sl *StationList) ToDdbStations() []DdbStation {
 		ddbStations[i] = DdbStation{
 			State:     s.Address.State,
 			City:      s.Address.City,
-			Zip:       s.Address.Zip,
+			Zip:       s.Address.Zip, 
 			Code:      s.Code,
 			Latitude:  s.Latitude,
 			LineCodes: s.convertLineCodesToList(),
