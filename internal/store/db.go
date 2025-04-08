@@ -14,24 +14,20 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var (
-	log              = appConfig.GetLogger()
-	StationTableName = "stations"
-	TrainTableName   = "trains"
-)
+var log = appConfig.GetLogger()
 
-func tableExists(ctx context.Context, client *dynamodb.Client, tableName string) bool {
+func tableExists(ctx context.Context, client *dynamodb.Client, tableName *string) bool {
 	_, err := client.DescribeTable(ctx, &dynamodb.DescribeTableInput{
-		TableName: aws.String(tableName),
+		TableName: tableName,
 	})
 	return err == nil
 }
 
 func tableItemCount(
-	ctx context.Context, client *dynamodb.Client, tableName string,
+	ctx context.Context, client *dynamodb.Client, tableName *string,
 ) (int, error) {
 	input := &dynamodb.DescribeTableInput{
-		TableName: aws.String(tableName),
+		TableName: tableName,
 	}
 
 	result, err := client.DescribeTable(ctx, input)
@@ -44,10 +40,10 @@ func tableItemCount(
 
 func createStationsTable(client *dynamodb.Client) error {
 	log.WithFields(logrus.Fields{
-		"TableName": StationTableName,
+		"TableName": appConfig.StationTableName,
 	}).Info("Creating DDB Table")
 	_, err := client.CreateTable(context.Background(), &dynamodb.CreateTableInput{
-		TableName: aws.String(StationTableName),
+		TableName: appConfig.StationTableName,
 		AttributeDefinitions: []types.AttributeDefinition{
 			{
 				AttributeName: aws.String("code"),
@@ -73,10 +69,10 @@ func createStationsTable(client *dynamodb.Client) error {
 
 func createTrainTable(client *dynamodb.Client) error {
 	log.WithFields(logrus.Fields{
-		"TableName": TrainTableName,
+		"TableName": appConfig.TrainTableName,
 	}).Info("Creating DDB Table")
 	_, err := client.CreateTable(context.Background(), &dynamodb.CreateTableInput{
-		TableName: aws.String(StationTableName),
+		TableName: appConfig.TrainTableName,
 		AttributeDefinitions: []types.AttributeDefinition{
 			{
 				AttributeName: aws.String("id"),
@@ -110,15 +106,15 @@ func createTrainTable(client *dynamodb.Client) error {
 
 func insertStations(client *dynamodb.Client) error {
 	// Insert stations if they don't already exist
-	count, err := tableItemCount(context.Background(), client, StationTableName)
+	count, err := tableItemCount(context.Background(), client, appConfig.StationTableName)
 	if err != nil {
 		log.WithFields(logrus.Fields{
-			"TableName": StationTableName,
+			"TableName": appConfig.StationTableName,
 		}).Warn("Failed to get item count from table.")
 	}
 	if count <= 0 {
 		log.WithFields(logrus.Fields{
-			"TableName": StationTableName,
+			"TableName": appConfig.StationTableName,
 		}).Info("inserting stations into DDB.")
 		stations, err := station.GetStations()
 		if err != nil {
@@ -151,21 +147,22 @@ func InitDB() (*dynamodb.Client, error) {
 	})
 
 	// Define table, you can have two primary keys (one for uniquness, one for sorting).
-	if !tableExists(context.Background(), client, StationTableName) {
-		err = createTrainTable(client)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if !tableExists(context.Background(), client, TrainTableName) {
+	if !tableExists(context.Background(), client, appConfig.StationTableName) {
 		err = createStationsTable(client)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	err = insertStations(client); if err != nil {
+	if !tableExists(context.Background(), client, appConfig.TrainTableName) {
+		err = createTrainTable(client)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	err = insertStations(client)
+	if err != nil {
 		return nil, err
 	}
 

@@ -7,8 +7,9 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"github.com/reww406/linetracker/config"	
-	"github.com/reww406/linetracker/internal/store"	
+	"github.com/reww406/linetracker/config"
+	"github.com/reww406/linetracker/internal/store"
+	"github.com/reww406/linetracker/internal/train"
 	"github.com/sirupsen/logrus"
 )
 
@@ -73,13 +74,13 @@ func main() {
 	log := config.GetLogger()
 	config := config.LoadConfig()
 
-  _, err := store.InitDB()
+  dbClient, err := store.InitDB()
 	if err != nil {
 		log.WithFields(logrus.Fields{
 			"error": err,
 		}).Fatal("Failed to open DB.")
 	}
-
+	train.PollTrainPredictions(dbClient)
 	server := CreateGinServer()
 	if err := server.router.Run(fmt.Sprintf(":%d", config.BindingPort)); err != nil {
 		log.WithFields(logrus.Fields{

@@ -13,8 +13,8 @@ type Configuration struct {
 	APIKey       string `json:"api_key"`
 	BindingPort  int    `json:"binding_port"`
 	IsProd       bool   `json:"prod"`
-	TrainRoute   string `json:"train_api"`
-	StationRoute string `json:"station_api"`
+	TrainRoute   string `json:"train_route"`
+	StationRoute string `json:"station_route"`
 	APIEndpoint  string `json:"api_endpoint"`
 }
 
@@ -43,6 +43,7 @@ func LoadConfig() *Configuration {
 		defer file.Close()
 
 		decoder := json.NewDecoder(file)
+		decoder.DisallowUnknownFields()
 		err = decoder.Decode(&config)
 		if err != nil {
 			log.WithFields(logrus.Fields{

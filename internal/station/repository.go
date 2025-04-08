@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
@@ -15,7 +14,30 @@ import (
 
 var log = config.GetLogger()
 
-func itemToDdbStation(item map[string]types.AttributeValue) DdbStation {	
+func InsertStations(ctx context.Context, client *dynamodb.Client, stationList StationList) error {
+	ddbStations := stationList.ToDdbStations()
+	log.WithFields(logrus.Fields{
+		"stations_len": len(ddbStations),
+	}).Info("Inserting Stations into DDB")
+
+	for _, station := range ddbStations {
+		item, err := attributevalue.MarshalMap(station)
+		if err != nil {
+			return fmt.Errorf("failed to marshal station: %w", err)
+		}
+
+		_, err = client.PutItem(ctx, &dynamodb.PutItemInput{
+			TableName: config.StationTableName,
+			Item:      item,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to insert station %s: %w", station.Code, err)
+		}
+	}
+	return nil
+}
+
+func itemToDdbStation(item map[string]types.AttributeValue) DdbStation {
 	longitudeStr := item["longitude"].(*types.AttributeValueMemberN).Value
 	longitude, _ := strconv.ParseFloat(longitudeStr, 32)
 
@@ -34,32 +56,9 @@ func itemToDdbStation(item map[string]types.AttributeValue) DdbStation {
 	}
 }
 
-func InsertStations(ctx context.Context, client *dynamodb.Client, stationList StationList) error {
-	ddbStations := stationList.ToDdbStations()
-	log.WithFields(logrus.Fields{
-		"StationsToInsert": len(ddbStations),
-	}).Info("Inserting Stations into DDB")
-
-	for _, station := range ddbStations {
-		item, err := attributevalue.MarshalMap(station)
-		if err != nil {
-			return fmt.Errorf("failed to marshal station: %w", err)
-		}
-
-		_, err = client.PutItem(ctx, &dynamodb.PutItemInput{
-			TableName: aws.String("stations"),
-			Item:      item,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to insert station %s: %w", station.Code, err)
-		}
-	}
-	return nil
-}
-
 func ListStations(ctx context.Context, client *dynamodb.Client) (*ListStationResp, error) {
 	paginator := dynamodb.NewScanPaginator(client, &dynamodb.ScanInput{
-		TableName: aws.String("stations"),
+		TableName: config.StationTableName,
 	})
 
 	var stations []DdbStation
