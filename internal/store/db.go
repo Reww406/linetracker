@@ -118,10 +118,10 @@ func insertStations(client *dynamodb.Client) error {
 		}).Info("inserting stations into DDB.")
 		stations, err := station.GetStations()
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get stations: %w", err) 
 		}
 		if err := station.InsertStations(context.Background(), client, *stations); err != nil {
-			return err
+			return fmt.Errorf("failed to insert stations: %w", err) 
 		}
 	}
 	return nil
@@ -150,20 +150,21 @@ func InitDB() (*dynamodb.Client, error) {
 	if !tableExists(context.Background(), client, appConfig.StationTableName) {
 		err = createStationsTable(client)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to create station table: %w", err)
 		}
 	}
 
 	if !tableExists(context.Background(), client, appConfig.TrainTableName) {
 		err = createTrainTable(client)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to create train table: %w", err)
+
 		}
 	}
 
 	err = insertStations(client)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to insert stations: %w", err)
 	}
 
 	return client, nil

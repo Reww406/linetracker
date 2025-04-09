@@ -57,8 +57,5 @@ func itemToDdbTrain(item map[string]types.AttributeValue) DdbTrain {
 	}
 }
 
-//func GetNRecentTrains() ([]DdbTrain, error) {
-//
-//}
 
 

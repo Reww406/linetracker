@@ -20,14 +20,14 @@ func requestStations() ([]byte, error) {
 
 	req, err := http.NewRequest("GET", config.GetStationAPI(), nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create get request: %w", err)
 	}
 
 	req.Header.Add("api_key", config.APIKey)
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to execute get station request: %w", err)
 	}
 
 	defer func() {
@@ -42,17 +42,17 @@ func requestStations() ([]byte, error) {
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read body: %w", err)
 	}
 
 	return body, nil
-
 }
 
 func GetStations() (*StationList, error) {
 	body, err := requestStations()
-
-	logrus.WithError(err).Errorln("failed to get stations from Metro API.")
+	if err != nil {
+		return nil, fmt.Errorf("requestStations failed with: %w", err)
+	}
 
 	log.WithFields(logrus.Fields{
 		"Body": string(body),
@@ -60,7 +60,7 @@ func GetStations() (*StationList, error) {
 
 	var stationList StationList
 	if err := json.Unmarshal(body, &stationList); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to unmarshal stationList: %w", err)
 	}
 
 	return &stationList, nil
