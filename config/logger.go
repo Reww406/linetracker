@@ -24,9 +24,9 @@ func GetLogger() *logrus.Logger {
 			}
 			log.SetOutput(io.MultiWriter(file, os.Stdout))
 		}
-		log.SetReportCaller(true)
+		// log.SetReportCaller(true)
 		log.SetOutput(os.Stdout)	
-		log.SetFormatter(&logrus.JSONFormatter{})
+		log.SetFormatter(&logrus.TextFormatter{})
 		log.SetLevel(logrus.DebugLevel)
 	})
 	return log

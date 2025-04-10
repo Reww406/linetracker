@@ -1,13 +1,14 @@
 package train
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
 )
 
 type Train struct {
-	Car             int8   `json:"Car"`
+	Car             string `json:"Car"`
 	Destination     string `json:"Destination"`
 	DestinationCode string `json:"DestinationCode"`
 	DestinationName string `json:"DestinationName"`
@@ -15,7 +16,7 @@ type Train struct {
 	Line            string `json:"Line"`
 	LocationCode    string `json:"LocationCode"`
 	LocationName    string `json:"LocationName"`
-	Min             int8   `json:"Min"`
+	Min             string `json:"Min"`
 }
 
 type TrainList struct {
@@ -38,9 +39,11 @@ type DdbTrain struct {
 
 func (tl *TrainList) toDdbTrains() []DdbTrain {
 	result := make([]DdbTrain, len(tl.TrainPredictions))
-	for _, train := range tl.TrainPredictions {
-		result = append(result, DdbTrain{
-			CarCount:        train.Car,
+	for i, train := range tl.TrainPredictions {
+		carInt, _ := strconv.Atoi(train.Car)
+		minInt, _ := strconv.Atoi(train.Min)
+		result[i] = DdbTrain{
+			CarCount:        int8(carInt),
 			Destination:     train.Destination,
 			DestinationCode: train.DestinationCode,
 			DestinationName: train.DestinationName,
@@ -48,10 +51,10 @@ func (tl *TrainList) toDdbTrains() []DdbTrain {
 			LineCode:        train.Line,
 			LocationCode:    train.LocationCode,
 			LocationName:    train.LocationName,
-			Minutes:         train.Min,
+			Minutes:         int8(minInt),
 			CreatedEpoch:    time.Now().Unix(),
 			Id:              uuid.New().String(),
-		})
+		}
 	}
 	return result
 }

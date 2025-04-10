@@ -22,7 +22,7 @@ func requestTrains() ([]byte, error) {
 
 	req, err := http.NewRequest("GET", config.GetTrainAPI(), nil)
 	if err != nil {
-		return nil, fmt.Errorf("get train request could not be created: %w", err) 
+		return nil, fmt.Errorf("get train request could not be created: %w", err)
 	}
 
 	req.Header.Add("api_key", config.APIKey)
@@ -66,6 +66,8 @@ func GetTrains() (*TrainList, error) {
 	if err := json.Unmarshal(body, &trainList); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal train list: %w", err)
 	}
+
+	log.WithField("trains", len(trainList.TrainPredictions)).Info("train predictions returned from API.")
 
 	return &trainList, nil
 }

@@ -17,6 +17,7 @@ func InsertTrains(
 	ctx context.Context, client *dynamodb.Client, trainList TrainList,
 ) error {
 	ddbTrains := trainList.toDdbTrains()
+	// For some reason the first 100 or so trains are empty...
 	log.WithFields(logrus.Fields{
 		"trains_len": len(ddbTrains),
 	}).Info("Inserting Trains into DDB")
@@ -26,7 +27,9 @@ func InsertTrains(
 		if err != nil {
 			return fmt.Errorf("failed to marshal train: %w", err)
 		}
-
+		log.WithFields(logrus.Fields{
+			"train": train,
+		}).Info("inserting train.")
 		_, err = client.PutItem(ctx, &dynamodb.PutItemInput{
 			TableName: config.TrainTableName,
 			Item:      item,

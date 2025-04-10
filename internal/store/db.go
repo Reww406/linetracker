@@ -80,7 +80,7 @@ func createTrainTable(client *dynamodb.Client) error {
 			},
 			{
 				AttributeName: aws.String("createdEpoch"),
-				AttributeType: types.ScalarAttributeTypeS,
+				AttributeType: types.ScalarAttributeTypeN,
 			},
 		},
 		KeySchema: []types.KeySchemaElement{
