@@ -17,7 +17,7 @@ func PollTrainPredictions(client *dynamodb.Client) {
 	for range ticker.C {
 		log.Info("Fetching train predictions from Metro API.")
 
-		trainList, err := GetTrains()
+		trainList, err := getTrains()
 		if err != nil {
 			log.WithError(err).Errorln("failed to get stations from Metro API")
 		}

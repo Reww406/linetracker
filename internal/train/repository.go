@@ -14,9 +14,9 @@ import (
 
 // Since TrainList is not a ptr, any changes will not modify the original one.
 func InsertTrains(
-	ctx context.Context, client *dynamodb.Client, trainList TrainList,
+	ctx context.Context, client *dynamodb.Client, trainList trainList,
 ) error {
-	ddbTrains := trainList.toDdbTrains()
+	ddbTrains := trainList.toTrainModels()
 	// For some reason the first 100 or so trains are empty...
 	log.WithFields(logrus.Fields{
 		"trains_len": len(ddbTrains),
@@ -41,11 +41,16 @@ func InsertTrains(
 	return nil
 }
 
-func itemToDdbTrain(item map[string]types.AttributeValue) DdbTrain {
+//func GetTrainPredictions(	
+//	ctx context.Context, client *dynamodb.Client, stationCode string,
+//) (TrainModel, error) {}
+
+
+func itemToDdbTrain(item map[string]types.AttributeValue) TrainModel {
 	carCount, _ := strconv.Atoi(item["carCount"].(*types.AttributeValueMemberN).Value)
 	minutes, _ := strconv.Atoi(item["minutes"].(*types.AttributeValueMemberN).Value)
 	createdEpoch, _ := strconv.Atoi(item["createdEpoch"].(*types.AttributeValueMemberN).Value)
-	return DdbTrain{
+	return TrainModel{
 		CarCount:        int8(carCount),
 		Destination:     item["destination"].(*types.AttributeValueMemberS).Value,
 		DestinationCode: item["destinationCode"].(*types.AttributeValueMemberS).Value,

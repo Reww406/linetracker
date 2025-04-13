@@ -70,7 +70,7 @@ func createStationsTable(client *dynamodb.Client) error {
 func createTrainTable(client *dynamodb.Client) error {
 	log.WithFields(logrus.Fields{
 		"TableName": appConfig.TrainTableName,
-	}).Info("Creating DDB Table")
+	}).Info("Creating DDB table")
 	_, err := client.CreateTable(context.Background(), &dynamodb.CreateTableInput{
 		TableName: appConfig.TrainTableName,
 		AttributeDefinitions: []types.AttributeDefinition{
@@ -104,24 +104,21 @@ func createTrainTable(client *dynamodb.Client) error {
 	return nil
 }
 
-func insertStations(client *dynamodb.Client) error {
+func initStationsTable(client *dynamodb.Client) error {
 	// Insert stations if they don't already exist
 	count, err := tableItemCount(context.Background(), client, appConfig.StationTableName)
 	if err != nil {
 		log.WithFields(logrus.Fields{
 			"TableName": appConfig.StationTableName,
-		}).Warn("Failed to get item count from table.")
+		}).Warn("failed to get item count from table.")
 	}
 	if count <= 0 {
 		log.WithFields(logrus.Fields{
 			"TableName": appConfig.StationTableName,
 		}).Info("inserting stations into DDB.")
-		stations, err := station.GetStations()
-		if err != nil {
-			return fmt.Errorf("failed to get stations: %w", err) 
-		}
-		if err := station.InsertStations(context.Background(), client, *stations); err != nil {
-			return fmt.Errorf("failed to insert stations: %w", err) 
+
+		if err := station.InsertStations(context.Background(), client); err != nil {
+			return fmt.Errorf("failed to insert stations table: %w", err) 
 		}
 	}
 	return nil
@@ -162,7 +159,7 @@ func InitDB() (*dynamodb.Client, error) {
 		}
 	}
 
-	err = insertStations(client)
+	err = initStationsTable(client)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert stations: %w", err)
 	}

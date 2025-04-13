@@ -5,11 +5,83 @@ import (
 	"testing"
 )
 
+var stationTimes = stationTimeList{
+    StationTimes: []stationTimesData{
+        {
+            Code:        "E10",
+            StationName: "Greenbelt",
+            Monday: daySchedule{
+                OpeningTime: "04:50",
+                FirstTrains: []train{
+                    {LeavingTime: "05:00", DestinationStation: "F11"},
+                },
+                LastTrains: []train{
+                    {LeavingTime: "23:26", DestinationStation: "F11"},
+                },
+            },
+            Tuesday: daySchedule{
+                OpeningTime: "04:50",
+                FirstTrains: []train{
+                    {LeavingTime: "05:00", DestinationStation: "F11"},
+                },
+                LastTrains: []train{
+                    {LeavingTime: "23:26", DestinationStation: "F11"},
+                },
+            },
+            Wednesday: daySchedule{
+                OpeningTime: "04:50",
+                FirstTrains: []train{
+                    {LeavingTime: "05:00", DestinationStation: "F11"},
+                },
+                LastTrains: []train{
+                    {LeavingTime: "23:26", DestinationStation: "F11"},
+                },
+            },
+            Thursday: daySchedule{
+                OpeningTime: "04:50",
+                FirstTrains: []train{
+                    {LeavingTime: "05:00", DestinationStation: "F11"},
+                },
+                LastTrains: []train{
+                    {LeavingTime: "23:26", DestinationStation: "F11"},
+                },
+            },
+            Friday: daySchedule{
+                OpeningTime: "04:50",
+                FirstTrains: []train{
+                    {LeavingTime: "05:00", DestinationStation: "F11"},
+                },
+                LastTrains: []train{
+                    {LeavingTime: "00:26", DestinationStation: "F11"},
+                },
+            },
+            Saturday: daySchedule{
+                OpeningTime: "06:50",
+                FirstTrains: []train{
+                    {LeavingTime: "07:00", DestinationStation: "F11"},
+                },
+                LastTrains: []train{
+                    {LeavingTime: "00:26", DestinationStation: "F11"},
+                },
+            },
+            Sunday: daySchedule{
+                OpeningTime: "07:50",
+                FirstTrains: []train{
+                    {LeavingTime: "07:00", DestinationStation: "F11"},
+                },
+                LastTrains: []train{
+                    {LeavingTime: "23:26", DestinationStation: "F11"},
+                },
+            },
+        },
+    },
+}
+
 func TestStationList(t *testing.T) {
-	stationList := StationList{
-		Stations: []Station{
+	stations := stationList{
+		Stations: []stationData{
 			{
-				Address: Address{
+				Address: address{
 					City:   "Test",
 					State:  "Test",
 					Street: "Test",
@@ -28,7 +100,7 @@ func TestStationList(t *testing.T) {
 		},
 	}
 
-	stationList.ToDdbStations()
+	stations.Stations[0].toStationModel(stationTimes)
 }
 
 func TestMarshallingToStationList(t *testing.T) {
@@ -52,8 +124,8 @@ func TestMarshallingToStationList(t *testing.T) {
 			}
 		}]
 	}`
-	var stationList StationList
-	if err := json.Unmarshal([]byte(input), &stationList); err != nil {
+	var stations stationList
+	if err := json.Unmarshal([]byte(input), &stations); err != nil {
 		log.Fatal(err.Error())	
 	}
 }

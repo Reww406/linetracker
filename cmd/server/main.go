@@ -5,9 +5,11 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/reww406/linetracker/config"
+	"github.com/reww406/linetracker/internal/station"
 	"github.com/reww406/linetracker/internal/store"
 	"github.com/reww406/linetracker/internal/train"
 	"github.com/sirupsen/logrus"
@@ -17,15 +19,24 @@ type Server struct {
 	router *gin.Engine
 }
 
-//func (s *Server) getStations(c *gin.Context) {
-//    c.JSON(http.StatusOK, gin.H{
-//        "stations": []string{"station1", "station2"},
-//    })
-//}
-//
-//func (s *Server) Run(addr string) error {
-//    return s.router.Run(addr)
-//}
+var ddbClient *dynamodb.Client
+
+func (s *Server) getStations(c *gin.Context) {
+	stationList, err := station.ListStations(c, ddbClient)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "failed to get stations",
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"stations": stationList,
+	})
+}
+
+func (s *Server) Run(addr string) error {
+	return s.router.Run(addr)
+}
 
 func (s *Server) setupRoutes() {
 	// Health check
@@ -37,7 +48,9 @@ func (s *Server) setupRoutes() {
 	v1 := s.router.Group("/api/v1")
 	{
 		// Routes
-		v1.GET("")
+		v1.GET("/stations", func(c *gin.Context) {
+			s.getStations(c)
+		})
 	}
 }
 
@@ -74,17 +87,18 @@ func main() {
 	log := config.GetLogger()
 	config := config.LoadConfig()
 
-  dbClient, err := store.InitDB()
+	client, err := store.InitDB()
 	if err != nil {
 		log.WithFields(logrus.Fields{
 			"error": err,
-		}).Fatal("Failed to open DB.")
+		}).Fatal("failed to connect to DDB.")
 	}
-	train.PollTrainPredictions(dbClient)
+	ddbClient = client
+	go train.PollTrainPredictions(ddbClient)
 	server := CreateGinServer()
 	if err := server.router.Run(fmt.Sprintf(":%d", config.BindingPort)); err != nil {
 		log.WithFields(logrus.Fields{
 			"error": err,
-		}).Fatal("Failed to start server.")
+		}).Fatal("failed to start server.")
 	}
 }
