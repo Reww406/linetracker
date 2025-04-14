@@ -11,7 +11,7 @@ import (
 // We should implement a Retry
 
 func PollTrainPredictions(client *dynamodb.Client) {
-	ticker := time.NewTicker(30 * time.Second)
+	ticker := time.NewTicker(20 * time.Second)
 	defer ticker.Stop()
 
 	for range ticker.C {

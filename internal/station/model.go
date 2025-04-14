@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+
+	"github.com/reww406/linetracker/internal/metro"
 )
 
 type stationList struct {
@@ -19,17 +21,17 @@ type address struct {
 }
 
 type stationData struct {
-	Address          address `json:"Address"`
-	Code             string  `json:"Code"`
-	Latitude         float32 `json:"Lat"`
-	LineCode1        string  `json:"LineCode1"` // RD, OR, SV, BL, GR
-	LineCode2        string  `json:"LineCode2"`
-	LineCode3        string  `json:"LineCode3"`
-	LineCode4        string  `json:"LineCode4"`
-	Longitude        float32 `json:"Lon"`
-	Name             string  `json:"Name"`
-	StationTogether1 string  `json:"StationTogether1"`
-	StationTogether2 string  `json:"StationTogether2"`
+	Address          address        `json:"Address"`
+	Code             string         `json:"Code"`
+	Latitude         float32        `json:"Lat"`
+	LineCode1        metro.LineCode `json:"LineCode1"`
+	LineCode2        metro.LineCode `json:"LineCode2"`
+	LineCode3        metro.LineCode `json:"LineCode3"`
+	LineCode4        metro.LineCode `json:"LineCode4"`
+	Longitude        float32        `json:"Lon"`
+	Name             string         `json:"Name"`
+	StationTogether1 string         `json:"StationTogether1"`
+	StationTogether2 string         `json:"StationTogether2"`
 }
 
 type stationTimeList struct {
@@ -65,7 +67,7 @@ type ListStationResp struct {
 
 type GetStationResp struct {
 	Address     address           `json:"address"`
-	LineCodes   []string          `json:"line_codes"`
+	LineCodes   []metro.LineCode  `json:"line_codes"`
 	StationCode string            `json:"station_code"`
 	Name        string            `json:"name"`
 	Schedule    []StationSchedule `json:"schedule"`
@@ -80,7 +82,7 @@ type StationModel struct {
 	Latitude        float32           `dynamodbav:"latitude"`
 	Longitude       float32           `dynamodbav:"longitude"`
 	Name            string            `dynamodbav:"name"`
-	LineCodes       []string          `dynamodbav:"lineCodes"`
+	LineCodes       []metro.LineCode        `dynamodbav:"lineCodes"`
 	StationSchedule []StationSchedule `dynamodbav:"stationSchedule"`
 }
 
@@ -90,14 +92,14 @@ type StationSchedule struct {
 	LastTrain   string `dynamodbav:"lastTrain"`
 }
 
-func (s *stationData) convertLineCodesToList() []string {
-	result := make([]string, 0, 4)
+func (s *stationData) convertLineCodesToList() []metro.LineCode {
+	result := make([]metro.LineCode, 0, 4)
 	for i := 1; i <= 4; i++ {
 		lineCodeNum := strconv.Itoa(i)
 		r := reflect.ValueOf(s)
 		field := reflect.Indirect(r).FieldByName(strings.Join([]string{"LineCode", lineCodeNum}, ""))
 		if field.String() != "" {
-			result = append(result, field.String())
+			result = append(result, metro.LineCode(field.String()))
 		}
 	}
 	return result

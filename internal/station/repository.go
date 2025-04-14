@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/reww406/linetracker/config"
+	"github.com/reww406/linetracker/internal/metro"
 	"github.com/sirupsen/logrus"
 )
 
@@ -22,7 +23,7 @@ func createDdbStations(stationList stationList) ([]StationModel, error) {
 
 	result := make([]StationModel, len(stationList.Stations))
 	for i, station := range stationList.Stations {
-		// wait for limiter to deliever on a channel
+		// wait for limiter to deliever on a channel before running
 		<-limiter.C
 		stationTimes, err := getStationTimes(station.Code)
 		if err != nil {
@@ -45,7 +46,7 @@ func InsertStations(ctx context.Context, client *dynamodb.Client) error {
 	if err != nil {
 		return err
 	}
-	
+
 	log.WithFields(logrus.Fields{
 		"stations_len": len(ddbStations),
 	}).Info("inserting stations into DDB")
@@ -73,6 +74,9 @@ func itemToDdbStation(item map[string]types.AttributeValue) StationModel {
 
 	latitudeStr := item["latitudeStr"].(*types.AttributeValueMemberN).Value
 	latitude, _ := strconv.ParseFloat(latitudeStr, 32)
+
+	lineCodesStr := item["lineCodes"].(*types.AttributeValueMemberSS).Value
+	lineCodes := metro.ToLineCodes(lineCodesStr)
 	return StationModel{
 		Code:      item["code"].(*types.AttributeValueMemberS).Value,
 		Name:      item["name"].(*types.AttributeValueMemberS).Value,
@@ -82,7 +86,7 @@ func itemToDdbStation(item map[string]types.AttributeValue) StationModel {
 		Latitude:  float32(latitude),
 		Street:    item["street"].(*types.AttributeValueMemberS).Value,
 		State:     item["state"].(*types.AttributeValueMemberS).Value,
-		LineCodes: item["lineCodes"].(*types.AttributeValueMemberSS).Value,
+		LineCodes: lineCodes,
 	}
 }
 
@@ -115,7 +119,7 @@ func ListStations(ctx context.Context, client *dynamodb.Client) (*ListStationRes
 			StationCode: station.Code,
 			LineCodes:   station.LineCodes,
 			Name:        station.Name,
-			Schedule: station.StationSchedule,
+			Schedule:    station.StationSchedule,
 		})
 	}
 	return &ListStationResp{Stations: result}, nil

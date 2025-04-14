@@ -9,6 +9,7 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/reww406/linetracker/config"
+	"github.com/reww406/linetracker/internal/metro"
 	"github.com/reww406/linetracker/internal/station"
 	"github.com/reww406/linetracker/internal/store"
 	"github.com/reww406/linetracker/internal/train"
@@ -20,6 +21,31 @@ type Server struct {
 }
 
 var ddbClient *dynamodb.Client
+
+func (s *Server) getNextTrains(c *gin.Context) {
+	// Get query parameters
+	lineCode := c.Query("line_code")
+	locationCode := c.Query("location_code")
+	direction := c.Query("direction")
+
+	req := train.GetNextTrainsRequest{
+		LineCode:     metro.LineCode(lineCode),
+		LocationCode: locationCode,
+		Direction:    direction,
+	}
+
+	result, err := train.GetTrainPredictions(c, ddbClient, req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "failed to get trains",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"trains": result,
+	})
+}
 
 func (s *Server) getStations(c *gin.Context) {
 	stationList, err := station.ListStations(c, ddbClient)
@@ -48,8 +74,14 @@ func (s *Server) setupRoutes() {
 	v1 := s.router.Group("/api/v1")
 	{
 		// Routes
+		// api/v1/stations
 		v1.GET("/stations", func(c *gin.Context) {
 			s.getStations(c)
+		})
+
+		// api/v1/trains?line_code=RD&line_code=BL&location_code=A01&direction_code=B01
+		v1.GET("/trains", func(c *gin.Context) {
+			s.getNextTrains(c)
 		})
 	}
 }

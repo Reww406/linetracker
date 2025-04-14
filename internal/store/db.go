@@ -75,21 +75,21 @@ func createTrainTable(client *dynamodb.Client) error {
 		TableName: appConfig.TrainTableName,
 		AttributeDefinitions: []types.AttributeDefinition{
 			{
-				AttributeName: aws.String("id"),
+				AttributeName: aws.String("locationCode"),
 				AttributeType: types.ScalarAttributeTypeS,
 			},
 			{
-				AttributeName: aws.String("createdEpoch"),
+				AttributeName: aws.String("createdEpochMs"),
 				AttributeType: types.ScalarAttributeTypeN,
 			},
 		},
 		KeySchema: []types.KeySchemaElement{
 			{
-				AttributeName: aws.String("id"),
+				AttributeName: aws.String("locationCode"),
 				KeyType:       types.KeyTypeHash,
 			},
 			{
-				AttributeName: aws.String("createdEpoch"),
+				AttributeName: aws.String("createdEpochMs"),
 				KeyType:       types.KeyTypeRange,
 			},
 		},
