@@ -60,6 +60,19 @@ func (s *Server) getStations(c *gin.Context) {
 	})
 }
 
+func (s *Server) getDestinations(c *gin.Context) {
+	destinationList, err := station.GetDestinationStations(c, ddbClient)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "failed to get stations",
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"stations": destinationList,
+	})
+}
+
 func (s *Server) Run(addr string) error {
 	return s.router.Run(addr)
 }
@@ -77,6 +90,10 @@ func (s *Server) setupRoutes() {
 		// api/v1/stations
 		v1.GET("/stations", func(c *gin.Context) {
 			s.getStations(c)
+		})
+
+		v1.GET("/destinations", func(c *gin.Context) {
+			s.getDestinations(c)
 		})
 
 		// api/v1/trains?line_code=RD&line_code=BL&location_code=A01&direction_code=B01

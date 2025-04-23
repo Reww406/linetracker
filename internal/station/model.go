@@ -9,6 +9,16 @@ import (
 	"github.com/reww406/linetracker/internal/metro"
 )
 
+var days = []string{
+	"Monday",
+	"Tuesday",
+	"Wednesday",
+	"Thursday",
+	"Friday",
+	"Saturday",
+	"Sunday",
+}
+
 type stationList struct {
 	Stations []stationData `json:"Stations"`
 }
@@ -82,8 +92,9 @@ type StationModel struct {
 	Latitude        float32           `dynamodbav:"latitude"`
 	Longitude       float32           `dynamodbav:"longitude"`
 	Name            string            `dynamodbav:"name"`
-	LineCodes       []metro.LineCode        `dynamodbav:"lineCodes"`
+	LineCodes       []metro.LineCode  `dynamodbav:"lineCodes"`
 	StationSchedule []StationSchedule `dynamodbav:"stationSchedule"`
+	Destinations    []string          `dynamodbav:"destinations"`
 }
 
 type StationSchedule struct {
@@ -106,15 +117,6 @@ func (s *stationData) convertLineCodesToList() []metro.LineCode {
 }
 
 func (st *stationTimeList) toStationSchedule() ([]StationSchedule, error) {
-	days := []string{
-		"Monday",
-		"Tuesday",
-		"Wednesday",
-		"Thursday",
-		"Friday",
-		"Saturday",
-		"Sunday",
-	}
 	if len(st.StationTimes) != 1 {
 		return nil, fmt.Errorf("station times had more than one entry: %d", len(st.StationTimes))
 	}
@@ -139,11 +141,42 @@ func (st *stationTimeList) toStationSchedule() ([]StationSchedule, error) {
 	return result, nil
 }
 
+func (st *stationTimeList) toDestinations() ([]string, error) {
+	if len(st.StationTimes) != 1 {
+		return nil, fmt.Errorf("station times had more than one entry: %d", len(st.StationTimes))
+	}
+	set := make(map[string]struct{})
+	r := reflect.ValueOf(st.StationTimes[0])
+	for _, day := range days {
+		field := reflect.Indirect(r).FieldByName(day)
+		daySchedule := field.Interface().(daySchedule)
+
+		for _, train := range daySchedule.FirstTrains {
+			set[train.DestinationStation] = struct{}{}
+		}
+
+		for _, train := range daySchedule.FirstTrains {
+			set[train.DestinationStation] = struct{}{}
+		}
+	}
+	result := make([]string, 0, len(set))
+	for k := range set {
+		result = append(result, k)
+	}
+	return result, nil
+}
+
 func (s *stationData) toStationModel(stationTimes stationTimeList) StationModel {
 	daySchedules, err := stationTimes.toStationSchedule()
 	if err != nil {
 		log.WithError(err).Errorln("failed to covert stationTimes to DdbDaySchedule")
 		daySchedules = []StationSchedule{}
+	}
+
+	destinations, err := stationTimes.toDestinations()
+	if err != nil {
+		log.WithError(err).Errorln("failed to get destinations from stationTimes")
+		destinations = []string{}
 	}
 
 	return StationModel{
@@ -156,5 +189,6 @@ func (s *stationData) toStationModel(stationTimes stationTimeList) StationModel 
 		Longitude:       s.Longitude,
 		Name:            s.Name,
 		StationSchedule: daySchedules,
+		Destinations:    destinations,
 	}
 }
