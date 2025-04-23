@@ -60,6 +60,20 @@ func (s *Server) getStations(c *gin.Context) {
 	})
 }
 
+
+func (s *Server) getLines(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"stations": []string{
+			"Silver",
+			"Orange",
+			"Blue",
+			"Red",
+			"Green",
+			"Yellow",
+		},
+	})
+}
+
 func (s *Server) getDestinations(c *gin.Context) {
 	destinationList, err := station.GetDestinationStations(c, ddbClient)
 	if err != nil {
@@ -99,6 +113,10 @@ func (s *Server) setupRoutes() {
 		// api/v1/trains?line_code=RD&line_code=BL&location_code=A01&direction_code=B01
 		v1.GET("/trains", func(c *gin.Context) {
 			s.getNextTrains(c)
+		})
+
+		v1.GET("/lines", func(c *gin.Context) {
+			s.getLines(c)
 		})
 	}
 }

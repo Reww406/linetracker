@@ -21,6 +21,5 @@ func ToLineCodes(codes []types.AttributeValue) []LineCode {
 			result[i] = LineCode(sv.Value)
 		}
 	}
-
 	return result
 }
