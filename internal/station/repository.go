@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
@@ -16,22 +17,35 @@ import (
 
 var log = config.GetLogger()
 
-func createDdbStations(stationList stationList) ([]StationModel, error) {
+func getStationSchedules(stationList stationList) (
+	map[string]stationTimeList, error,
+) {
 	// will tick 5 times a seconds.
 	limiter := time.NewTicker(200 * time.Millisecond)
 	defer limiter.Stop()
 
-	result := make([]StationModel, len(stationList.Stations))
-	for i, station := range stationList.Stations {
+	result := make(map[string]stationTimeList)
+	for _, station := range stationList.Stations {
 		// wait for limiter to deliever on a channel before running
 		<-limiter.C
 		stationTimes, err := getStationTimes(station.Code)
 		if err != nil {
 			return nil, fmt.Errorf(
-				"failed to get station times for station: %s with error: %w", station.Code, err,
+				"failed to get station times for station: %s with error: %w",
+				station.Code, err,
 			)
 		}
-		result[i] = station.toStationModel(*stationTimes)
+		result[station.Code] = *stationTimes
+	}
+	return result, nil
+}
+
+func createStationModelWithSchedule(
+	stationList stationList, stationTimeLookup map[string]stationTimeList,
+) ([]StationModel, error) {
+	result := make([]StationModel, len(stationList.Stations))
+	for i, station := range stationList.Stations {
+		result[i] = station.toStationModel(stationTimeLookup[station.Code])
 	}
 	return result, nil
 }
@@ -42,16 +56,23 @@ func InsertStations(ctx context.Context, client *dynamodb.Client) error {
 		return fmt.Errorf("failed to get stations: %w", err)
 	}
 
-	ddbStations, err := createDdbStations(*stationList)
+	stationTimeLookup, err := getStationSchedules(*stationList)
+	if err != nil {
+		return err
+	}
+
+	stationModel, err := createStationModelWithSchedule(*stationList,
+		stationTimeLookup,
+	)
 	if err != nil {
 		return err
 	}
 
 	log.WithFields(logrus.Fields{
-		"stations_len": len(ddbStations),
+		"stations_len": len(stationModel),
 	}).Info("inserting stations into DDB")
 
-	for _, station := range ddbStations {
+	for _, station := range stationModel {
 		item, err := attributevalue.MarshalMap(station)
 		if err != nil {
 			return fmt.Errorf("failed to marshal station: %w", err)
@@ -99,7 +120,9 @@ func itemToDdbStation(item map[string]types.AttributeValue) StationModel {
 		Street:       item["street"].(*types.AttributeValueMemberS).Value,
 		State:        item["state"].(*types.AttributeValueMemberS).Value,
 		LineCodes:    lineCodes,
-		Destinations: ddbListToStringList(item["destinations"].(*types.AttributeValueMemberL).Value),
+		Destinations: ddbListToStringList(item["destinations"].(
+			*types.AttributeValueMemberL).Value,
+		),
 	}
 }
 
@@ -111,7 +134,9 @@ func createStationCodeLookup(stations []StationModel) map[string]StationModel {
 	return result
 }
 
-func scanStations(ctx context.Context, client *dynamodb.Client) ([]StationModel, error) {
+func scanStations(ctx context.Context, client *dynamodb.Client) (
+	[]StationModel, error,
+) {
 	paginator := dynamodb.NewScanPaginator(client, &dynamodb.ScanInput{
 		TableName: config.StationTableName,
 	})
@@ -132,7 +157,9 @@ func scanStations(ctx context.Context, client *dynamodb.Client) ([]StationModel,
 	return result, nil
 }
 
-func ListStations(ctx context.Context, client *dynamodb.Client) ([]StationModel, error) {
+func ListStations(ctx context.Context, client *dynamodb.Client) (
+	[]StationModel, error,
+) {
 	stations, err := scanStations(ctx, client)
 	if err != nil {
 		return nil, err
@@ -140,7 +167,62 @@ func ListStations(ctx context.Context, client *dynamodb.Client) ([]StationModel,
 	return stations, nil
 }
 
-func GetDestinationStations(ctx context.Context, client *dynamodb.Client) ([]StationModel, error) {
+func hourMinuteToTime(hourMinute string) time.Time {
+	timeSplit := strings.Split(hourMinute, ":")
+	hour, _ := strconv.Atoi(timeSplit[0])
+	minute, _ := strconv.Atoi(timeSplit[1])
+
+	now := time.Now()
+	return time.Date(
+		now.Year(), now.Month(), now.Day(),
+		hour, minute, 0, 0, time.Local,
+	)
+}
+
+func findLastOpenClose(daySchedule []StationSchedule) [2]time.Time {
+	minOpen := hourMinuteToTime(daySchedule[0].OpeningTime)
+	maxClose := hourMinuteToTime(daySchedule[0].LastTrain)
+
+	for _, schedule := range daySchedule {
+		open := hourMinuteToTime(schedule.OpeningTime)
+		close := hourMinuteToTime(schedule.LastTrain)
+
+		if open.UnixMilli() < minOpen.UnixMilli() {
+			minOpen = open
+		}
+		if close.UnixMilli() > maxClose.UnixMilli() {
+			maxClose = close
+		}
+	}
+	return [2]time.Time{minOpen, maxClose}
+}
+
+// TODO Test, also how range should be based on time.
+func GetPollerRange(ctx context.Context, client *dynamodb.Client) (
+	*[2]time.Time, error,
+) {
+	stations, err := scanStations(ctx, client)
+	if err != nil {
+		return nil, err
+	}
+	var openClose [2]time.Time
+	for _, station := range stations {
+		newOpenClose := findLastOpenClose(station.StationSchedule)
+		if newOpenClose[0].UnixMilli() < openClose[0].UnixMilli() {
+			openClose[0] = newOpenClose[0]
+		}
+
+		if newOpenClose[1].UnixMilli() > openClose[1].UnixMilli() {
+			openClose[1] = newOpenClose[1]
+		}
+	}
+	result := [2]time.Time{openClose[0], openClose[1]}
+	return &result, nil
+}
+
+func GetDestinationStations(ctx context.Context, client *dynamodb.Client) (
+	[]StationModel, error,
+) {
 	stations, err := scanStations(ctx, client)
 	stationCodeLookup := createStationCodeLookup(stations)
 	if err != nil {

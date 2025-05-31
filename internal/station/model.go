@@ -108,7 +108,9 @@ func (s *stationData) convertLineCodesToList() []metro.LineCode {
 	for i := 1; i <= 4; i++ {
 		lineCodeNum := strconv.Itoa(i)
 		r := reflect.ValueOf(s)
-		field := reflect.Indirect(r).FieldByName(strings.Join([]string{"LineCode", lineCodeNum}, ""))
+		field := reflect.Indirect(r).FieldByName(
+			strings.Join([]string{"LineCode", lineCodeNum}, ""),
+		)
 		if field.String() != "" {
 			result = append(result, metro.LineCode(field.String()))
 		}
@@ -118,7 +120,10 @@ func (s *stationData) convertLineCodesToList() []metro.LineCode {
 
 func (st *stationTimeList) toStationSchedule() ([]StationSchedule, error) {
 	if len(st.StationTimes) != 1 {
-		return nil, fmt.Errorf("station times had more than one entry: %d", len(st.StationTimes))
+		return nil, fmt.Errorf(
+			"station times had more than one entry: %d",
+			len(st.StationTimes),
+		)
 	}
 
 	result := make([]StationSchedule, len(days))
@@ -130,6 +135,10 @@ func (st *stationTimeList) toStationSchedule() ([]StationSchedule, error) {
 		lastTrain := ""
 		if len(daySchedule.LastTrains) != 0 {
 			lastTrain = daySchedule.LastTrains[0].LeavingTime
+		} else {
+			log.Warnf(
+				"failed to get last train for station: %s", st.StationTimes[0].Code,
+			)
 		}
 
 		result[i] = StationSchedule{
@@ -143,7 +152,9 @@ func (st *stationTimeList) toStationSchedule() ([]StationSchedule, error) {
 
 func (st *stationTimeList) toDestinations() ([]string, error) {
 	if len(st.StationTimes) != 1 {
-		return nil, fmt.Errorf("station times had more than one entry: %d", len(st.StationTimes))
+		return nil, fmt.Errorf(
+			"station times had more than one entry: %d", len(st.StationTimes),
+		)
 	}
 	set := make(map[string]struct{})
 	r := reflect.ValueOf(st.StationTimes[0])
@@ -169,7 +180,9 @@ func (st *stationTimeList) toDestinations() ([]string, error) {
 func (s *stationData) toStationModel(stationTimes stationTimeList) StationModel {
 	daySchedules, err := stationTimes.toStationSchedule()
 	if err != nil {
-		log.WithError(err).Errorln("failed to covert stationTimes to DdbDaySchedule")
+		log.WithError(err).Errorln(
+			"failed to covert stationTimes to DdbDaySchedule",
+		)
 		daySchedules = []StationSchedule{}
 	}
 

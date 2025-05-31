@@ -25,7 +25,7 @@ func GetRequest(url string, apiKey string) (*http.Request, error) {
 
 func ExecuteRequest(req *http.Request) ([]byte, error) {
 	client := config.Client
-	
+
 	log.WithField("http_req", req).Info("Executing request against metro API.")
 
 	resp, err := client.Do(req)
@@ -40,7 +40,9 @@ func ExecuteRequest(req *http.Request) ([]byte, error) {
 	}()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed GET request with status code: %d", resp.StatusCode)
+		return nil, fmt.Errorf(
+			"failed GET request with status code: %d", resp.StatusCode,
+		)
 	}
 
 	return io.ReadAll(resp.Body)

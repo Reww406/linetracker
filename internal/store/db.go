@@ -16,7 +16,9 @@ import (
 
 var log = appConfig.GetLogger()
 
-func tableExists(ctx context.Context, client *dynamodb.Client, tableName *string) bool {
+func tableExists(
+	ctx context.Context, client *dynamodb.Client, tableName *string,
+) bool {
 	_, err := client.DescribeTable(ctx, &dynamodb.DescribeTableInput{
 		TableName: tableName,
 	})
@@ -106,7 +108,9 @@ func createTrainTable(client *dynamodb.Client) error {
 
 func initStationsTable(client *dynamodb.Client) error {
 	// Insert stations if they don't already exist
-	count, err := tableItemCount(context.Background(), client, appConfig.StationTableName)
+	count, err := tableItemCount(
+		context.Background(), client, appConfig.StationTableName,
+	)
 	if err != nil {
 		log.WithFields(logrus.Fields{
 			"TableName": appConfig.StationTableName,

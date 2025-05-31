@@ -6,7 +6,6 @@ import (
 
 	"github.com/reww406/linetracker/config"
 	"github.com/reww406/linetracker/internal/metro"
-
 )
 
 var log = config.GetLogger()
@@ -33,8 +32,9 @@ func getTrains() (*trainList, error) {
 		return nil, fmt.Errorf("failed to unmarshal train list: %w", err)
 	}
 
-	log.WithField("trains", len(trains.TrainPredictions)).Info("train predictions returned from API.")
+	log.WithField("trains", len(trains.TrainPredictions)).Info(
+		"train predictions returned from API.",
+	)
 
 	return &trains, nil
 }
-

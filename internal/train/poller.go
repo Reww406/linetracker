@@ -7,10 +7,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"	
 )
 
+
 // TODO Needs to fetch trains every 5 seconds between 6AM->6PM.
 // We should implement a Retry
-
-func PollTrainPredictions(client *dynamodb.Client) {
+func PollTrainPredictions(client *dynamodb.Client, openClose [2]int64) {
 	ticker := time.NewTicker(20 * time.Second)
 	defer ticker.Stop()
 

@@ -42,7 +42,9 @@ func (c *Configuration) GetStationAPI() string {
 }
 
 func (c *Configuration) GetStationTimingAPI(stationCode string) string {
-	return strings.Join([]string{c.APIEndpoint, c.stationTimingRoute, stationCode}, "")
+	return strings.Join([]string{
+		c.APIEndpoint, c.stationTimingRoute, stationCode,
+	}, "")
 }
 
 var (

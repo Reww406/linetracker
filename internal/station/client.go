@@ -11,7 +11,9 @@ import (
 
 func requestStationTiming(stationCode string) ([]byte, error) {
 	config := appConfig.LoadConfig()
-	req, err := metro.GetRequest(config.GetStationTimingAPI(stationCode), config.APIKey)
+	req, err := metro.GetRequest(
+		config.GetStationTimingAPI(stationCode), config.APIKey,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build request %w", err)
 	}

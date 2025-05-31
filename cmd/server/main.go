@@ -60,10 +60,9 @@ func (s *Server) getStations(c *gin.Context) {
 	})
 }
 
-
 func (s *Server) getLines(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
-		"stations": []string{
+		"lines": []string{
 			"Silver",
 			"Orange",
 			"Blue",
@@ -83,7 +82,7 @@ func (s *Server) getDestinations(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
-		"stations": destinationList,
+		"destinations": destinationList,
 	})
 }
 
@@ -106,6 +105,7 @@ func (s *Server) setupRoutes() {
 			s.getStations(c)
 		})
 
+		// api/v1/destionations
 		v1.GET("/destinations", func(c *gin.Context) {
 			s.getDestinations(c)
 		})
@@ -115,6 +115,7 @@ func (s *Server) setupRoutes() {
 			s.getNextTrains(c)
 		})
 
+		// api/v1/lines
 		v1.GET("/lines", func(c *gin.Context) {
 			s.getLines(c)
 		})
@@ -128,19 +129,20 @@ func CreateGinServer() *Server {
 	// Middleware
 	router.Use(gin.Recovery())
 	router.Use(cors.Default())
-	router.Use(gin.LoggerWithFormatter(func(param gin.LogFormatterParams) string {
-		return fmt.Sprintf("%s - [%s] \"%s %s %s %d %s \"%s\" %s\"\n",
-			param.ClientIP,
-			param.TimeStamp.Format(time.RFC1123),
-			param.Method,
-			param.Path,
-			param.Request.Proto,
-			param.StatusCode,
-			param.Latency,
-			param.Request.UserAgent(),
-			param.ErrorMessage,
-		)
-	}))
+	router.Use(
+		gin.LoggerWithFormatter(func(param gin.LogFormatterParams) string {
+			return fmt.Sprintf("%s - [%s] \"%s %s %s %d %s \"%s\" %s\"\n",
+				param.ClientIP,
+				param.TimeStamp.Format(time.RFC1123),
+				param.Method,
+				param.Path,
+				param.Request.Proto,
+				param.StatusCode,
+				param.Latency,
+				param.Request.UserAgent(),
+				param.ErrorMessage,
+			)
+		}))
 
 	server := &Server{
 		router: router,
@@ -161,11 +163,12 @@ func main() {
 		}).Fatal("failed to connect to DDB.")
 	}
 	ddbClient = client
-	go train.PollTrainPredictions(ddbClient)
+	// go train.PollTrainPredictions(ddbClient)
 	server := CreateGinServer()
-	if err := server.router.Run(fmt.Sprintf(":%d", config.BindingPort)); err != nil {
-		log.WithFields(logrus.Fields{
-			"error": err,
-		}).Fatal("failed to start server.")
+	if err := server.router.Run(
+		fmt.Sprintf(":%d", config.BindingPort)); err != nil {
+			log.WithFields(logrus.Fields{
+				"error": err,
+			}).Fatal("failed to start server.")
 	}
 }
